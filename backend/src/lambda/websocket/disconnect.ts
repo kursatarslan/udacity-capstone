@@ -7,7 +7,7 @@ const XAWS = AWSXRay.captureAWS(AWS)
 
 const docClient = new XAWS.DynamoDB.DocumentClient()
 
-const connectionsTable = process.env.CONNECTIONS_TABLE
+const connectionsTable = process.env.TODOCONNECTION_TABLE
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Websocket disconnect', event)
