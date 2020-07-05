@@ -118,3 +118,11 @@ Connection Impormation
 Socket.io
 
 ![Alt text](images/import-collection-7.png?raw=true "Image 7")
+
+Socket.io
+
+![Alt text](images/import-collection-8.png?raw=true "Image 8")
+
+Travis-cli build integration and testing CI/CD
+
+![Alt text](images/import-collection-9.png?raw=true "Image 9")
