@@ -13,6 +13,8 @@ import { updateTodo } from '../../businessLogic/todoLogic'
 const todoTable = process.env.TODOS_TABLE */
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  console.log('Processing event: ', event);
+  console.log('Processing todoId: ', event.pathParameters.todoId);
   const todoId = event.pathParameters.todoId
   const updatedTodo: UpdateTodoRequest = JSON.parse(event.body)
 

@@ -13,7 +13,8 @@ export async function getTodos(idToken: string): Promise<Todo[]> {
       'Authorization': `Bearer ${idToken}`
     },
   })
-  console.log('Todos:', response.data)
+  console.log(JSON.stringify(response));
+  console.log('Todos:', response);
   return response.data.items
 }
 

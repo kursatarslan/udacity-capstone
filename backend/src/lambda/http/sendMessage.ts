@@ -1,4 +1,4 @@
-/*
+
 import 'source-map-support/register'
 // import * as uuid from 'uuid' 
 import { APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult } from 'aws-lambda'
@@ -9,8 +9,10 @@ import { APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult } f
 const TODOCONNECTION_TABLE = process.env.TODOCONNECTION_TABLE;
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-
+  console.debug("Starting Lambda handler: event=%s", JSON.stringify(event));
   console.log(event);
+  const connectionId = event.requestContext.connectionId;
+  if (!connectionId) throw new Error("No connection ID");
   //const createdTodo: CreateTodoRequest = JSON.parse(event.body)
   // const itemId = uuid.v4(); 
   //const authorization = event.headers.Authorization
@@ -39,6 +41,15 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
             })
           }
   });
+  return {
+    statusCode: 500,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    },
+    body: JSON.stringify({
+      item: ""
+    })
+  }
   
 }
 
@@ -76,4 +87,4 @@ const getConnectionIds = () => {
     };
     return apigwManagementApi.postToConnection(params).promise();
   };
- */
+ 

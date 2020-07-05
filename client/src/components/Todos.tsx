@@ -37,30 +37,37 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log(`Inside Todos.handleNameChange()`);
     this.setState({ newTodoName: event.target.value })
   }
 
   onEditButtonClick = (todoId: string) => {
+    console.log(`Inside Todos.onEditButtonClick()`);
     this.props.history.push(`/todos/${todoId}/edit`)
   }
 
   onTodoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
+    console.log(`Inside Todos.onTodoCreate()`);
     try {
       const dueDate = this.calculateDueDate()
+      console.log(`newTodoName: ${this.state.newTodoName}`)
       const newTodo = await createTodo(this.props.auth.getIdToken(), {
         name: this.state.newTodoName,
         dueDate
       })
-      this.setState({
+      /*this.setState({
         todos: [...this.state.todos, newTodo],
         newTodoName: ''
-      })
+      })*/
+      /** added by myself */
+      await this.genTodos();
     } catch {
       alert('Todo creation failed')
     }
   }
 
   onTodoDelete = async (todoId: string) => {
+    console.log(`Inside Todos.onTodoDelete()`);
     try {
       await deleteTodo(this.props.auth.getIdToken(), todoId)
       this.setState({
@@ -72,6 +79,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   onTodoCheck = async (pos: number) => {
+    console.log(`Inside Todos.onTodoCheck()`);
     try {
       const todo = this.state.todos[pos]
       await patchTodo(this.props.auth.getIdToken(), todo.todoId, {
@@ -89,23 +97,33 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
     }
   }
 
+  /** added by myself */
+  genTodos = async ()=>{
+    const todos = await getTodos(this.props.auth.getIdToken())
+    console.log(`Fetched todos:`)
+    console.log(todos)
+    this.setState({
+      todos,
+      loadingTodos: false
+    })
+  }
+
   async componentDidMount() {
+    console.log(`Inside Todos.componentDidMount()`);
     try {
-      const todos = await getTodos(this.props.auth.getIdToken())
-      this.setState({
-        todos,
-        loadingTodos: false
-      })
+      await this.genTodos();
     } catch (e) {
       alert(`Failed to fetch todos: ${e.message}`)
     }
   }
 
   render() {
+    console.log(`Inside Todos.render()`);
     return (
       <div>
-        <Header as="h1">TODOs Count  {this.state.todos.length}</Header>
+         <Header as="h1">TODOs Count  {this.state.todos.length}</Header>
         <Header as="h1">Done Count  {this.state.todos.filter(todo => todo.done === true).length}</Header>
+
         {this.renderCreateTodoInput()}
 
         {this.renderTodos()}
@@ -114,6 +132,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   renderCreateTodoInput() {
+    console.log(`Inside Todos.renderCreateTodoInput()`);
     return (
       <Grid.Row>
         <Grid.Column width={16}>
@@ -139,6 +158,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   renderTodos() {
+    console.log(`Inside Todos.renderTodos()`);
     if (this.state.loadingTodos) {
       return this.renderLoading()
     }
@@ -147,6 +167,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   renderLoading() {
+    console.log(`Inside Todos.renderLoading()`);
     return (
       <Grid.Row>
         <Loader indeterminate active inline="centered">
@@ -157,6 +178,9 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   renderTodosList() {
+    console.log(`Inside Todos.renderTodosList()`);
+    console.log(`this.state.todos inside Todos.renderTodosList():`);
+    console.log(this.state.todos);
     return (
       <Grid padded>
         {this.state.todos.map((todo, pos) => {
@@ -206,6 +230,7 @@ export class Todos extends React.PureComponent<TodosProps, TodosState> {
   }
 
   calculateDueDate(): string {
+    console.log(`Inside Todos.calculateDueDate()`);
     const date = new Date()
     date.setDate(date.getDate() + 7)
 

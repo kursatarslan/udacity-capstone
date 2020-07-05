@@ -6,10 +6,9 @@ import { CreateTodoRequest } from '../../requests/CreateTodoRequest'
 /* import * as AWS from 'aws-sdk'
 import { parseUserId } from '../../auth/utils' */
 import { createTodo } from '../../businessLogic/todoLogic'
+import * as middy from 'middy'
 
-
-
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const handler: APIGatewayProxyHandler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const createdTodo: CreateTodoRequest = JSON.parse(event.body)
   /* const itemId = uuid.v4(); */
   const authorization = event.headers.Authorization
@@ -23,9 +22,10 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     statusCode: 201,
     headers: {
       'Access-Control-Allow-Origin': '*',
+      "Access-Control-Allow-Credentials" : true
     },
     body: JSON.stringify({
       item:newTodo
     })
   }
-}
+})

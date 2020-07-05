@@ -1,11 +1,10 @@
- import 'source-map-support/register'
-
+import 'source-map-support/register'
 import { APIGatewayProxyEvent, APIGatewayProxyResult, APIGatewayProxyHandler } from 'aws-lambda'
 
 import { deleteTodo } from '../../businessLogic/todoLogic'
+import * as middy from 'middy'
 
-
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const handler: APIGatewayProxyHandler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const todoId = event.pathParameters.todoId
   const authorization = event.headers.Authorization
   const split = authorization.split(' ')
@@ -16,9 +15,10 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   return {
     statusCode: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      "Access-Control-Allow-Credentials" : true
     },
     body: ''
   }
-}
+})
  

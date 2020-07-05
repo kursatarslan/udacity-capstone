@@ -11,7 +11,7 @@ const connectionsTable = process.env.TODOCONNECTION_TABLE
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Websocket connect', event)
-  var msg = 'connected';
+  var msg = 'connected->';
   const connectionId = event.requestContext.connectionId
   const timestamp = new Date().toISOString()
 
@@ -20,7 +20,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     timestamp
   }
 
-  console.log('Storing item: ', item)
+  console.log('Storing item _> : ', item)
 
   await docClient.put({
     TableName: connectionsTable,

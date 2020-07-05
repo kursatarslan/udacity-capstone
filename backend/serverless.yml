@@ -5,6 +5,12 @@ plugins:
   - serverless-webpack
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
+  - serverless-aws-documentation
+  - serverless-plugin-tracing
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-plugin-canary-deployments
+  - serverless-s3-local
 
 provider:
   name: aws
@@ -21,15 +27,28 @@ provider:
           - 'xray:PutTelemetryRecords'
         Resource:
           - '*'
+      - Effect: Allow
+        Action:
+          - codedeploy:*
+        Resource:
+          - '*'
+
   environment:
     TODOCONNECTION_TABLE: connections-${self:provider.stage}
     stage: ${self:provider.stage}
     region: ${self:provider.region}
+    USER_ID_INDEX: UserIdIndex
+    USERID_DUEDATE_INDEX: UserIdDueDateIndex
     TODOS_TABLE: todos-${self:provider.stage}
     TODOS_BUCKET: serverless-todo-kursat-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
   iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+      Resource: arn:aws:s3:::${self:provider.environment.TODOS_BUCKET}/*
     - Effect: Allow
       Action:
         - dynamodb:Scan
@@ -89,11 +108,39 @@ functions:
           path: todos
           cors: true
           authorizer: Auth
+          documentation:
+            summary: Get all todos for user
+            description: All Todos of user
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource: arn:aws:s3:::${self:provider.environment.TODOS_BUCKET}/*
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.USER_ID_INDEX}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.USERID_DUEDATE_INDEX}
+      - Effect: "Allow"
+        Action:
+          - "ec2:CreateNetworkInterface"
+          - "ec2:DescribeNetworkInterfaces"
+          - "ec2:DeleteNetworkInterface"
+        Resource: "*"
 
   # TODO: Configure this function
 
@@ -111,9 +158,15 @@ functions:
             description: Create new todo task
             requestModels:
               'application/json': CreateTodo
+
+    deploymentSettings:
+      type: Linear10PercentEvery1Minute
+      alias: Live
     iamRoleStatements:
       - Effect: Allow
         Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
@@ -132,9 +185,14 @@ functions:
             description: Update task
             requestModels:
               'application/json': UpdateTodo
+    deploymentSettings:
+      type: Linear10PercentEvery1Minute
+      alias: Live
     iamRoleStatements:
       - Effect: Allow
         Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
           - dynamodb:UpdateItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
@@ -147,9 +205,15 @@ functions:
           path: todos/{todoId}
           cors: true
           authorizer: Auth
+    deploymentSettings:
+      type: Linear10PercentEvery1Minute
+      alias: Live
     iamRoleStatements:
       - Effect: Allow
         Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+          - dynamodb:PutItem
           - dynamodb:DeleteItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
@@ -165,15 +229,71 @@ functions:
     iamRoleStatements:
       - Effect: Allow
         Action:
+          - dynamodb:Query
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
           - s3:*
-        Resource: arn:aws:s3:::${self:provider.environment.TODOS_BUCKET}/*
+        Resource: arn:aws:s3:::${self:provider.environment.TODOS_BUCKET}/*      
+  SyncWithElasticsearch:
+    environment:
+      ES_ENDPOINT: !GetAtt TodoSearch.DomainEndpoint
+      SNS_ARN:
+        Fn::Join:
+          - ':'
+          - - arn:aws:sns
+            - Ref: AWS::Region
+            - Ref: AWS::AccountId
+            - ${self:custom.topicName}
+      TOPIC_NAME: ${self:custom.topicName}
+    handler: src/lambda/dynamodb/elasticSearchSync.handler
+    events:
+      - stream:
+        type: dynamodb
+        arn: !GetAtt TodoDynamoDBTable.StreamArn
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - sns:Publish
+        Resource: 
+          Fn::Join:
+            - ':'
+            - - arn:aws:sns
+              - Ref: AWS::Region
+              - Ref: AWS::AccountId
+              - ${self:custom.topicName}
+              
+  QueryTodo:
+    environment:
+      ES_ENDPOINT: !GetAtt TodoSearch.DomainEndpoint
+    handler: src/lambda/http/searchTodo.handler
+    events:
+      - http:
+          method: post
+          path: todos/search/
+          cors: true
+          integration: LAMBDA 
+          authorizer: Auth
+          #reqValidatorName: RequestBodyValidator
+          documentation:
+            summary: Query todos
+            description: Query todos based on startwith logic
+            #requestModels:
+            #   'application/json': TodoRequestSearch
+    deploymentSettings:
+      type: Linear10PercentEvery1Minute
+      alias: Live
+
 custom:
   topicName: todoTopic-${self:provider.stage}
+  topicPublisher: sls-enhanced-todo-dev-SyncWithElasticsearch
+
   documentation:
     api:
       info:
         version: v1.0.0
-        title: Udagram API
+        title: TODO API
         description: Serverless application for todo list
     models:
       - name: CreateTodo
@@ -182,8 +302,36 @@ custom:
       - name: UpdateTodo
         contentType: application/json
         schema: ${file(models/update-todo-request.json)}
+      - name: TodoRequestDelete
+        contentType: application/json
+        schema: ${file(models/delete-todo-request.json)}
+      - name: TodoRequestSearch
+        contentType: application/json
+        schema: ${file(models/search-todo-request.json)}
+
+    serverless-offline:
+      port: 3003
+    dynamodb:
+      start:
+        port: 8000
+        inMemory: true
+        migrate: true
+      stages: # Add this section of the config
+        - dev
+
 resources:
   Resources:
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST,PUT,PATCH'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+
     RequestBodyValidator:
       Type: AWS::ApiGateway::RequestValidator
       Properties:
@@ -210,17 +358,38 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
+          - AttributeName: todoId
+            AttributeType: S
           - AttributeName: userId
             AttributeType: S
-          - AttributeName: todoId
+          - AttributeName: dueDate
             AttributeType: S
         KeySchema:
-          - AttributeName: userId
-            KeyType: HASH
           - AttributeName: todoId
+            KeyType: HASH
+          - AttributeName: userId
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
-        TableName: ${self:provider.environment.TODOS_TABLE}    
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
+        TableName: ${self:provider.environment.TODOS_TABLE}
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.USER_ID_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: ${self:provider.environment.USERID_DUEDATE_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: dueDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+
     AttachmentsBucket:
         Type: AWS::S3::Bucket
         Properties:
@@ -280,3 +449,28 @@ resources:
       Properties:
         DisplayName: Todo bucket topic
         TopicName: ${self:custom.topicName}
+    TodoSearch:
+      Type: AWS::Elasticsearch::Domain
+      Properties:
+        ElasticsearchVersion: '6.3'
+        DomainName: todos-search-${self:provider.stage}
+        ElasticsearchClusterConfig:
+          DedicatedMasterEnabled: false
+          InstanceCount: '1'
+          ZoneAwarenessEnabled: false
+          InstanceType: t2.small.elasticsearch
+        EBSOptions:
+          EBSEnabled: true
+          Iops: 0
+          VolumeSize: 10
+          VolumeType: 'gp2'
+    
+        AccessPolicies:
+          Version: '2012-10-17'
+          Statement:
+            -
+              Effect: Allow
+              Principal:
+                AWS: '*'
+              Action: 'es:*'
+              Resource: '*'

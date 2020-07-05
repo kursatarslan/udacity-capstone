@@ -9,6 +9,7 @@ import * as uuid from 'uuid'
 const todosAccess = new TodosAccess();
 
 export async function getTodos(jwtToken: string): Promise<TodoItem[]> {
+    console.log("getTodos at todoLogic.ts")
     const userId = parseUserId(jwtToken)
     return todosAccess.getTodos(userId)
 }
