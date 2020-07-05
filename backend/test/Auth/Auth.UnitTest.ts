@@ -9,7 +9,7 @@ describe('parse userId', () => {
 
     it('should return correct userId', () => {
       const userId = parseUserId(token1)
-      expect(userId).to.equal(`oauth|5ed2ba01beb6840c9395e2c1`);
+      expect(userId).to.equal(`auth0|5ed2ba01beb6840c9395e2c1`);
     });
   
     it('should return null for empty token', () => {
