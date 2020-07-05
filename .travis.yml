@@ -2,10 +2,10 @@ language: node_js
 node_js: 
   - '12'
 install:
-    - cd $TRAVIS_BUILD_DIR/frontend
+    - cd $TRAVIS_BUILD_DIR/backend
     - npm install
     - cd $TRAVIS_BUILD_DIR
 before_script:
-    - cd $TRAVIS_BUILD_DIR/frontend
+    - cd $TRAVIS_BUILD_DIR/backend
 script:
     - npm test
